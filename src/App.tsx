@@ -21,6 +21,7 @@ const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'));
 const SearchPage = lazy(() => import('@/pages/SearchPage'));
+const AddPatternPage = lazy(() => import('@/pages/admin/AddPatternPage'));
 
 function LoadingSpinner() {
   return (
@@ -53,6 +54,7 @@ function App() {
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
                     <Route path="/search" element={<SearchPage />} />
+                    <Route path="/admin/add-pattern" element={<AddPatternPage />} />
                   </Routes>
                 </Suspense>
               </main>

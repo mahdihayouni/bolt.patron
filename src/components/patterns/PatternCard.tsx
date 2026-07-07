@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 
 interface PatternCardProps {
   pattern: Pattern;
+  coverImageUrl?: string | null;
 }
 
 const difficultyColors = {
@@ -18,16 +19,16 @@ const difficultyColors = {
   professional: 'bg-red-500/10 text-red-600 dark:text-red-400',
 };
 
-export function PatternCard({ pattern }: PatternCardProps) {
+export function PatternCard({ pattern, coverImageUrl }: PatternCardProps) {
   const { getText } = useLocalText();
 
   // Generate dynamic aspect ratio for Pinterest-style layout
   const aspectRatios = ['aspect-[3/4]', 'aspect-[4/5]', 'aspect-[2/3]', 'aspect-[3/5]'];
   const randomAspect = aspectRatios[pattern.id.charCodeAt(0) % aspectRatios.length];
 
-  // Generate placeholder image based on pattern category
+  // Use provided cover image URL or generate a placeholder
   const imageId = 6000000 + parseInt(pattern.id.slice(-4), 16) % 1000000;
-  const imageUrl = `https://images.pexels.com/photos/${imageId}/pexels-photo.jpeg?auto=compress&cs=tinysrgb&w=600`;
+  const imageUrl = coverImageUrl || `https://images.pexels.com/photos/${imageId}/pexels-photo.jpeg?auto=compress&cs=tinysrgb&w=600`;
 
   return (
     <Link to={`/pattern/${pattern.slug}`}>

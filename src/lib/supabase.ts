@@ -117,6 +117,22 @@ export interface PatternImage {
   width: number | null;
   height: number | null;
   file_size: number | null;
+  storage_path: string | null;
+  created_at: string;
+}
+
+export interface PatternFile {
+  id: string;
+  pattern_id: string;
+  storage_path: string;
+  public_url: string;
+  file_name: string;
+  file_type: 'pdf' | 'zip' | 'svg' | 'dxf' | 'ai' | 'video' | 'image' | 'other';
+  file_size: number | null;
+  display_name: MultilingualText;
+  description: MultilingualText;
+  display_order: number;
+  is_primary: boolean;
   created_at: string;
 }
 

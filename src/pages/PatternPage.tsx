@@ -13,12 +13,15 @@ import {
   Star,
   MessageCircle,
   ChevronLeft,
+  FileText,
+  Package,
+  FileArchive,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { supabase, Pattern, PatternImage } from '@/lib/supabase';
+import { supabase, Pattern, PatternImage, PatternFile } from '@/lib/supabase';
 import { useLocalText } from '@/hooks/useLocalText';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -43,6 +46,7 @@ export default function PatternPage() {
   const { getText, language } = useLocalText();
   const [pattern, setPattern] = useState<Pattern | null>(null);
   const [images, setImages] = useState<PatternImage[]>([]);
+  const [files, setFiles] = useState<PatternFile[]>([]);
   const [relatedPatterns, setRelatedPatterns] = useState<Pattern[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -66,12 +70,34 @@ export default function PatternPage() {
       if (patternData) {
         setPattern(patternData);
 
-        // Generate placeholder images
-        const placeholderImages: PatternImage[] = [
-          { id: '1', pattern_id: patternData.id, image_url: `https://images.pexels.com/photos/${6000000}/pexels-photo.jpeg?auto=compress&cs=tinysrgb&w=800`, image_type: 'photo', display_order: 0, is_primary: true, created_at: new Date().toISOString(), alt_text: { en: '', fr: '', ar: '' }, thumbnail_url: '', width: 800, height: 1200, file_size: null },
-          { id: '2', pattern_id: patternData.id, image_url: `https://images.pexels.com/photos/${6001000}/pexels-photo.jpeg?auto=compress&cs=tinysrgb&w=800`, image_type: 'blueprint', display_order: 1, is_primary: false, created_at: new Date().toISOString(), alt_text: { en: '', fr: '', ar: '' }, thumbnail_url: '', width: 800, height: 1200, file_size: null },
-        ];
-        setImages(placeholderImages);
+        // Fetch pattern images from database
+        const { data: imagesData } = await supabase
+          .from('pattern_images')
+          .select('*')
+          .eq('pattern_id', patternData.id)
+          .order('display_order', { ascending: true });
+
+        if (imagesData && imagesData.length > 0) {
+          setImages(imagesData);
+          // Set selected image to the primary one
+          const primaryIndex = imagesData.findIndex(img => img.is_primary);
+          if (primaryIndex >= 0) setSelectedImage(primaryIndex);
+        } else {
+          // Fallback placeholder images
+          const placeholderImages: PatternImage[] = [
+            { id: '1', pattern_id: patternData.id, image_url: `https://images.pexels.com/photos/4429476/pexels-photo-4429476.jpeg?auto=compress&cs=tinysrgb&w=800`, image_type: 'photo', display_order: 0, is_primary: true, created_at: new Date().toISOString(), alt_text: { en: '', fr: '', ar: '' }, thumbnail_url: '', width: 800, height: 1200, file_size: null, storage_path: null },
+          ];
+          setImages(placeholderImages);
+        }
+
+        // Fetch pattern files from database
+        const { data: filesData } = await supabase
+          .from('pattern_files')
+          .select('*')
+          .eq('pattern_id', patternData.id)
+          .order('display_order', { ascending: true });
+
+        setFiles(filesData || []);
 
         // Fetch related patterns
         const { data: related } = await supabase
@@ -91,6 +117,25 @@ export default function PatternPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getFileIcon = (fileType: string) => {
+    switch (fileType) {
+      case 'pdf':
+        return <FileText className="h-4 w-4" />;
+      case 'zip':
+        return <FileArchive className="h-4 w-4" />;
+      case 'svg':
+      case 'dxf':
+      case 'ai':
+        return <Package className="h-4 w-4" />;
+      default:
+        return <Download className="h-4 w-4" />;
+    }
+  };
+
+  const handleDownload = (file: PatternFile) => {
+    window.open(file.public_url, '_blank');
   };
 
   if (loading) {
@@ -276,10 +321,17 @@ export default function PatternPage() {
 
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-2">
-              <Button size="lg" className="flex-1">
-                <Download className="h-4 w-4 mr-2" />
-                {t('patterns.download')}
-              </Button>
+              {files.length > 0 ? (
+                <Button size="lg" className="flex-1" onClick={() => handleDownload(files.find(f => f.is_primary) || files[0])}>
+                  <Download className="h-4 w-4 mr-2" />
+                  {t('patterns.download')}
+                </Button>
+              ) : (
+                <Button size="lg" className="flex-1" disabled>
+                  <Download className="h-4 w-4 mr-2" />
+                  {t('patterns.download')}
+                </Button>
+              )}
               <Button size="lg" variant="outline">
                 <Heart className="h-4 w-4" />
               </Button>
@@ -290,6 +342,39 @@ export default function PatternPage() {
                 <Printer className="h-4 w-4" />
               </Button>
             </div>
+
+            {/* Download Files List */}
+            {files.length > 1 && (
+              <div className="mt-4">
+                <h3 className="font-medium mb-3">
+                  {language === 'ar' ? 'الملفات المتاحة' : language === 'fr' ? 'Fichiers disponibles' : 'Available Files'}
+                </h3>
+                <div className="space-y-2">
+                  {files.map((file) => (
+                    <button
+                      key={file.id}
+                      onClick={() => handleDownload(file)}
+                      className="w-full flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary/10 text-primary">
+                          {getFileIcon(file.file_type)}
+                        </div>
+                        <div className="text-left rtl:text-right">
+                          <p className="font-medium">{getText(file.display_name) || file.file_name}</p>
+                          {file.file_size && (
+                            <p className="text-xs text-muted-foreground">
+                              {(file.file_size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="uppercase">{file.file_type}</Badge>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </motion.div>
 
           <Separator />
@@ -413,28 +498,32 @@ export default function PatternPage() {
         >
           <h2 className="text-2xl font-bold mb-6">{t('patterns.relatedPatterns')}</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {relatedPatterns.map((p, index) => (
-              <motion.div
-                key={p.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Link to={`/pattern/${p.slug}`}>
-                  <div className="aspect-[3/4] rounded-lg overflow-hidden bg-muted relative group">
-                    <img
-                      src={`https://images.pexels.com/photos/${6000000 + index}-pexels-photo.jpeg?auto=compress&cs=tinysrgb&w=400`}
-                      alt={getText(p.title)}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
-                      <p className="text-sm font-medium line-clamp-2">{getText(p.title)}</p>
+            {relatedPatterns.map((p, index) => {
+              const relatedImageId = 6000000 + parseInt(p.id.slice(-4), 16) % 1000000;
+              const relatedImageUrl = `https://images.pexels.com/photos/${relatedImageId}/pexels-photo.jpeg?auto=compress&cs=tinysrgb&w=400`;
+              return (
+                <motion.div
+                  key={p.id}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <Link to={`/pattern/${p.slug}`}>
+                    <div className="aspect-[3/4] rounded-lg overflow-hidden bg-muted relative group">
+                      <img
+                        src={relatedImageUrl}
+                        alt={getText(p.title)}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+                        <p className="text-sm font-medium line-clamp-2">{getText(p.title)}</p>
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
+                  </Link>
+                </motion.div>
+              );
+            })}
           </div>
         </motion.div>
       )}
